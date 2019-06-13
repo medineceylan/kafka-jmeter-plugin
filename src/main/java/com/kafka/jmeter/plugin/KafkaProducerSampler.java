@@ -55,13 +55,13 @@ public class KafkaProducerSampler implements JavaSamplerClient {
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, context.getParameter(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG));
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, context.getParameter(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG));
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, context.getParameter(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG));
-        props.setProperty(ProducerConfig.ACKS_CONFIG, context.getParameter(ProducerConfig.ACKS_CONFIG));
-        props.setProperty(ProducerConfig.RETRIES_CONFIG, context.getParameter(ProducerConfig.RETRIES_CONFIG));
-        props.setProperty(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, context.getParameter(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION));
-        props.setProperty(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, context.getParameter(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG));
-        props.setProperty(ProducerConfig.BATCH_SIZE_CONFIG, context.getParameter(ProducerConfig.BATCH_SIZE_CONFIG));
-        props.setProperty(ProducerConfig.LINGER_MS_CONFIG, context.getParameter(ProducerConfig.LINGER_MS_CONFIG));
-        props.setProperty(ProducerConfig.BUFFER_MEMORY_CONFIG, context.getParameter(ProducerConfig.BUFFER_MEMORY_CONFIG));
+        props.put(ProducerConfig.ACKS_CONFIG, context.getParameter(ProducerConfig.ACKS_CONFIG));
+        props.put(ProducerConfig.RETRIES_CONFIG, context.getParameter(ProducerConfig.RETRIES_CONFIG));
+        props.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, context.getParameter(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION));
+        props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, context.getParameter(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG));
+        props.put(ProducerConfig.BATCH_SIZE_CONFIG, context.getParameter(ProducerConfig.BATCH_SIZE_CONFIG));
+        props.put(ProducerConfig.LINGER_MS_CONFIG, context.getParameter(ProducerConfig.LINGER_MS_CONFIG));
+        props.put(ProducerConfig.BUFFER_MEMORY_CONFIG, context.getParameter(ProducerConfig.BUFFER_MEMORY_CONFIG));
 
         // check if kafka security protocol is SSL or PLAINTEXT (default)
         if ("true".equalsIgnoreCase(context.getParameter(PARAMETER_KAFKA_USE_SSL))) {
@@ -98,19 +98,15 @@ public class KafkaProducerSampler implements JavaSamplerClient {
         defaultParameters.addArgument(ProducerConfig.LINGER_MS_CONFIG, "${__P(linger.ms, 5)}");
         defaultParameters.addArgument(ProducerConfig.BUFFER_MEMORY_CONFIG, "${__P(buffer.memory, 33554432)}");
         defaultParameters.addArgument(ProducerConfig.COMPRESSION_TYPE_CONFIG, "${__P(compression.type, snappy)}");
-
         defaultParameters.addArgument(PARAMETER_KAFKA_USE_SSL, "${__P(use.ssl, false)}");
         defaultParameters.addArgument(PARAMETER_KAFKA_SSL_KEYSTORE, "${__P(ssl.keystore, )}");
         defaultParameters.addArgument(PARAMETER_KAFKA_SSL_KEYSTORE_PASS, "${__P(ssl.keystore.password, )}");
         defaultParameters.addArgument(PARAMETER_KAFKA_SSL_TRUSTSTORE, "${__P(ssl.truststore, )}");
         defaultParameters.addArgument(PARAMETER_KAFKA_SSL_TRUSTSTORE_PASS, "${__P(ssl.truststore.password, )}");
-
         defaultParameters.addArgument(PARAMETER_KAFKA_TOPIC, "${__P(kafka.topic, my-jemeter-topicss)}");
         defaultParameters.addArgument(PARAMETER_KAFKA_KEY, "${__P(kafka.key, )}");
         defaultParameters.addArgument(PARAMETER_KAFKA_PARTITION, "${__P(kafka.partition,)}");
-
-
-        defaultParameters.addArgument(PARAMETER_BATCH, "${PARAMETER_BATCH}");
+        defaultParameters.addArgument(PARAMETER_BATCH, "${__P(PARAMETER_BATCH, parameter-batch)}");
         defaultParameters.addArgument(PARAMETER_THREAD_NUMBER, "${__threadNum()}");
         defaultParameters.addArgument(PARAMETER_MESSAGE_NUMBER, "${PARAMETER_MESSAGE_NUMBER}");
 
@@ -129,14 +125,14 @@ public class KafkaProducerSampler implements JavaSamplerClient {
         sampleResultStart(result, message.toString());
 
         ProducerRecord<String, String> producerRecord;
-        final Integer partition = context.getIntParameter(PARAMETER_KAFKA_PARTITION);
+      //  final String partition = context.getParameter(PARAMETER_KAFKA_PARTITION);
         try {
-            if (partition != null) {
-
+//            if (partition != null) {
+//
+//                producerRecord = new ProducerRecord<>(topic,Integer.parseInt(partition), key, mapper.writerWithDefaultPrettyPrinter().writeValueAsString(message));
+//            } else {
                 producerRecord = new ProducerRecord<>(topic, key, mapper.writerWithDefaultPrettyPrinter().writeValueAsString(message));
-            } else {
-                producerRecord = new ProducerRecord<>(topic, partition, key, mapper.writerWithDefaultPrettyPrinter().writeValueAsString(message));
-            }
+//            }
             producer.send(producerRecord);
             sampleResultSuccess(result, null);
         }
