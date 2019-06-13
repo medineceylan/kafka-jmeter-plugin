@@ -107,7 +107,7 @@ public class KafkaProducerSampler implements JavaSamplerClient {
 
         defaultParameters.addArgument(PARAMETER_KAFKA_TOPIC, "${__P(kafka.topic, my-jemeter-topicss)}");
         defaultParameters.addArgument(PARAMETER_KAFKA_KEY, "${__P(kafka.key, )}");
-        defaultParameters.addArgument(PARAMETER_KAFKA_PARTITION, "${__P(kafka.partition,4)}");
+        defaultParameters.addArgument(PARAMETER_KAFKA_PARTITION, "${__P(kafka.partition,)}");
 
 
         defaultParameters.addArgument(PARAMETER_BATCH, "${PARAMETER_BATCH}");
