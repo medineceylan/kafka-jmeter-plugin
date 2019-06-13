@@ -1,5 +1,9 @@
 package com.kafka.jmeter.plugin;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kafka.jmeter.plugin.model.Message;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.jmeter.config.Arguments;
 import org.apache.jmeter.protocol.java.sampler.JavaSamplerClient;
 import org.apache.jmeter.protocol.java.sampler.JavaSamplerContext;
@@ -12,140 +16,154 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Properties;
 
+import static java.lang.String.format;
+
 
 public class KafkaProducerSampler implements JavaSamplerClient {
 
     private static final String ENCODING = "UTF-8";
-    private static final String PARAMETER_KAFKA_BROKERS = "kafka_brokers";
-    private static final String PARAMETER_KAFKA_TOPIC = "kafka_topic";
-    private static final String PARAMETER_KAFKA_ACKS = "kafka_acks";
-    private static final String PARAMETER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION = "max-in-fligh-request-per-connection";
-    private static final String PARAMETER_KAFKA_IDEMPOTENCE = "idempotency";
 
-    private static final String PARAMETER_KAFKA_MESSAGE = "kafka_message";
+    private static final String PARAMETER_KAFKA_TOPIC = "kafka.topic";
 
-    private static final String PARAMETER_KAFKA_VALUE_SERIALIZER = "kafka_value_serializer";
+    private static final String PARAMETER_KAFKA_PARTITION = "kafka.partition";
 
-    private static final String PARAMETER_KAFKA_KEY_SERIALIZER = "kafka_key_serializer";
+    private static final String PARAMETER_KAFKA_KEY = "kafka.key";
 
-    private static final String PARAMETER_KAFKA_SSL_KEYSTORE = "kafka_ssl_keystore";
+    private static final String PARAMETER_KAFKA_SSL_KEYSTORE = "ssl.keystore";
 
-    private static final String PARAMETER_KAFKA_SSL_KEYSTORE_PASSWORD = "kafka_ssl_keystore_password";
+    private static final String PARAMETER_KAFKA_SSL_KEYSTORE_PASS = "ssl.keystore.password";
 
-    private static final String PARAMETER_KAFKA_SSL_TRUSTSTORE = "kafka_ssl_truststore";
+    private static final String PARAMETER_KAFKA_SSL_TRUSTSTORE = "ssl.truststore";
 
-    private static final String PARAMETER_KAFKA_SSL_TRUSTSTORE_PASSWORD = "kafka_ssl_truststore_password";
+    private static final String PARAMETER_KAFKA_SSL_TRUSTSTORE_PASS = "ssl.truststore.password";
 
-    private static final String PARAMETER_KAFKA_USE_SSL = "kafka_use_ssl";
+    private static final String PARAMETER_KAFKA_USE_SSL = "use.ssl";
 
+    private static final String PARAMETER_BATCH = "batch";
 
-    private static final String PARAMETER_KAFKA_COMPRESSION_TYPE = "kafka_compression_type";
+    private static final String PARAMETER_THREAD_NUMBER = "thread.number";
 
-    private static final String PARAMETER_KAFKA_PARTITION = "kafka_partition";
+    private static final String PARAMETER_MESSAGE_NUMBER = "message.number";
 
-    private static final String PARAMETER_KAFKA_KEY = "kafka_key";
-
+    private static final ObjectMapper mapper = new ObjectMapper();
 
     private KafkaProducer<String, String> producer;
-
 
     public void setupTest(JavaSamplerContext context) {
         Properties props = new Properties();
 
-        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, context.getParameter(PARAMETER_KAFKA_BROKERS));
-        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, context.getParameter(PARAMETER_KAFKA_KEY_SERIALIZER));
-        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, context.getParameter(PARAMETER_KAFKA_VALUE_SERIALIZER));
-        props.setProperty(ProducerConfig.ACKS_CONFIG, context.getParameter(PARAMETER_KAFKA_ACKS));
-        props.setProperty(ProducerConfig.RETRIES_CONFIG, String.valueOf(Integer.MAX_VALUE));
-        props.setProperty(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, context.getParameter(PARAMETER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION));
-        props.setProperty(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, context.getParameter(PARAMETER_KAFKA_IDEMPOTENCE));
-
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, context.getParameter(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG));
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, context.getParameter(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG));
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, context.getParameter(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG));
+        props.setProperty(ProducerConfig.ACKS_CONFIG, context.getParameter(ProducerConfig.ACKS_CONFIG));
+        props.setProperty(ProducerConfig.RETRIES_CONFIG, context.getParameter(ProducerConfig.RETRIES_CONFIG));
+        props.setProperty(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, context.getParameter(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION));
+        props.setProperty(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, context.getParameter(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG));
+        props.setProperty(ProducerConfig.BATCH_SIZE_CONFIG, context.getParameter(ProducerConfig.BATCH_SIZE_CONFIG));
+        props.setProperty(ProducerConfig.LINGER_MS_CONFIG, context.getParameter(ProducerConfig.LINGER_MS_CONFIG));
+        props.setProperty(ProducerConfig.BUFFER_MEMORY_CONFIG, context.getParameter(ProducerConfig.BUFFER_MEMORY_CONFIG));
 
         // check if kafka security protocol is SSL or PLAINTEXT (default)
-        if (context.getParameter(PARAMETER_KAFKA_USE_SSL).equals("true")) {
+        if ("true".equalsIgnoreCase(context.getParameter(PARAMETER_KAFKA_USE_SSL))) {
             props.put("security.protocol", "SSL");
             props.put("ssl.keystore.location", context.getParameter(PARAMETER_KAFKA_SSL_KEYSTORE));
-            props.put("ssl.keystore.password", context.getParameter(PARAMETER_KAFKA_SSL_KEYSTORE_PASSWORD));
+            props.put("ssl.keystore.password", context.getParameter(PARAMETER_KAFKA_SSL_KEYSTORE_PASS));
             props.put("ssl.truststore.location", context.getParameter(PARAMETER_KAFKA_SSL_TRUSTSTORE));
-            props.put("ssl.truststore.password", context.getParameter(PARAMETER_KAFKA_SSL_TRUSTSTORE_PASSWORD));
+            props.put("ssl.truststore.password", context.getParameter(PARAMETER_KAFKA_SSL_TRUSTSTORE_PASS));
         }
 
-        String compressionType = context.getParameter(PARAMETER_KAFKA_COMPRESSION_TYPE);
-        if (compressionType!=null) {
+        final String compressionType = context.getParameter(ProducerConfig.COMPRESSION_TYPE_CONFIG);
+        if (compressionType != null) {
             props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, compressionType);
         }
 
         producer = new KafkaProducer<String, String>(props);
     }
 
-
     public void teardownTest(JavaSamplerContext context) {
         producer.close();
     }
 
-
     public Arguments getDefaultParameters() {
 
         Arguments defaultParameters = new Arguments();
-        defaultParameters.addArgument(PARAMETER_KAFKA_BROKERS, "${PARAMETER_KAFKA_BROKERS}");
-        defaultParameters.addArgument(PARAMETER_KAFKA_KEY, "${PARAMETER_KAFKA_KEY}");
-        defaultParameters.addArgument(PARAMETER_KAFKA_PARTITION, "${PARAMETER_KAFKA_PARTITION}");
-        defaultParameters.addArgument(PARAMETER_KAFKA_MESSAGE, "${PARAMETER_KAFKA_MESSAGE}");
+        defaultParameters.addArgument(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "${__P(bootstrap.servers,localhost:9092)}");
+        defaultParameters.addArgument(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "${__P(key.serializer,org.apache.kafka.common.serialization.StringSerializer)}");
+        defaultParameters.addArgument(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "${__P(value.serializer,org.apache.kafka.common.serialization.StringSerializer)}");
+        defaultParameters.addArgument(ProducerConfig.ACKS_CONFIG, "${__P(acks, all)}");
+        defaultParameters.addArgument(ProducerConfig.RETRIES_CONFIG, format("${__P(retries, %s)}", Integer.MAX_VALUE));
+        defaultParameters.addArgument(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "${__P(max.in.flight.requests.per.connection, 5)}");
+        defaultParameters.addArgument(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "${__P(enable.idempotence, true)}");
+        defaultParameters.addArgument(ProducerConfig.BATCH_SIZE_CONFIG, "${__P(batch.size, 16645)}");
+        defaultParameters.addArgument(ProducerConfig.LINGER_MS_CONFIG, "${__P(linger.ms, 5)}");
+        defaultParameters.addArgument(ProducerConfig.BUFFER_MEMORY_CONFIG, "${__P(buffer.memory, 33554432)}");
+        defaultParameters.addArgument(ProducerConfig.COMPRESSION_TYPE_CONFIG, "${__P(compression.type, snappy)}");
+
+        defaultParameters.addArgument(PARAMETER_KAFKA_USE_SSL, "${__P(use.ssl, false)}");
+        defaultParameters.addArgument(PARAMETER_KAFKA_SSL_KEYSTORE, "${__P(ssl.keystore, )}");
+        defaultParameters.addArgument(PARAMETER_KAFKA_SSL_KEYSTORE_PASS, "${__P(ssl.keystore.password, )}");
+        defaultParameters.addArgument(PARAMETER_KAFKA_SSL_TRUSTSTORE, "${__P(ssl.truststore, )}");
+        defaultParameters.addArgument(PARAMETER_KAFKA_SSL_TRUSTSTORE_PASS, "${__P(ssl.truststore.password, )}");
+
+        defaultParameters.addArgument(PARAMETER_KAFKA_TOPIC, "${__P(kafka.topic, my-jemeter-topicss)}");
+        defaultParameters.addArgument(PARAMETER_KAFKA_KEY, "${__P(kafka.key, )}");
+        defaultParameters.addArgument(PARAMETER_KAFKA_PARTITION, "${__P(kafka.partition,4)}");
 
 
-        defaultParameters.addArgument(PARAMETER_KAFKA_TOPIC, "${PARAMETER_KAFKA_TOPIC}");
-        defaultParameters.addArgument(PARAMETER_KAFKA_VALUE_SERIALIZER, "org.apache.kafka.common.serialization.StringSerializer");
-        defaultParameters.addArgument(PARAMETER_KAFKA_KEY_SERIALIZER, "org.apache.kafka.common.serialization.StringSerializer");
-        defaultParameters.addArgument(PARAMETER_KAFKA_COMPRESSION_TYPE, "${PARAMETER_KAFKA_COMPRESSION_TYPE}");
-        defaultParameters.addArgument(PARAMETER_KAFKA_ACKS, "${PARAMETER_KAFKA_ACKS}");
-        defaultParameters.addArgument(PARAMETER_MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "${MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION}");
-        defaultParameters.addArgument(PARAMETER_KAFKA_IDEMPOTENCE, "${PARAMETER_KAFKA_IDEMPOTENCE}");
-
-        defaultParameters.addArgument(PARAMETER_KAFKA_SSL_KEYSTORE, "${PARAMETER_KAFKA_SSL_KEYSTORE}");
-        defaultParameters.addArgument(PARAMETER_KAFKA_SSL_KEYSTORE_PASSWORD, "${PARAMETER_KAFKA_SSL_KEYSTORE_PASSWORD}");
-        defaultParameters.addArgument(PARAMETER_KAFKA_SSL_TRUSTSTORE, "${PARAMETER_KAFKA_SSL_TRUSTSTORE}");
-        defaultParameters.addArgument(PARAMETER_KAFKA_SSL_TRUSTSTORE_PASSWORD, "${PARAMETER_KAFKA_SSL_TRUSTSTORE_PASSWORD}");
-        defaultParameters.addArgument(PARAMETER_KAFKA_USE_SSL, "${PARAMETER_KAFKA_USE_SSL}");
+        defaultParameters.addArgument(PARAMETER_BATCH, "${PARAMETER_BATCH}");
+        defaultParameters.addArgument(PARAMETER_THREAD_NUMBER, "${__threadNum()}");
+        defaultParameters.addArgument(PARAMETER_MESSAGE_NUMBER, "${PARAMETER_MESSAGE_NUMBER}");
 
 
         return defaultParameters;
     }
 
-
     public SampleResult runTest(JavaSamplerContext context) {
 
-        SampleResult result = newSampleResult();
-        String topic = context.getParameter(PARAMETER_KAFKA_TOPIC);
-        String key = context.getParameter(PARAMETER_KAFKA_KEY);
-        String message = context.getParameter(PARAMETER_KAFKA_MESSAGE);
-        sampleResultStart(result, message);
+        final SampleResult result = newSampleResult();
+        final String topic = context.getParameter(PARAMETER_KAFKA_TOPIC);
+        final String key = context.getParameter(PARAMETER_KAFKA_KEY);
 
-        final ProducerRecord<String, String> producerRecord;
-        String partitionString = context.getParameter(PARAMETER_KAFKA_PARTITION);
-        if (partitionString!=null) {
-            producerRecord = new ProducerRecord<String, String>(topic, key, message);
-        } else {
-            final int partitionNumber = Integer.parseInt(partitionString);
-            producerRecord = new ProducerRecord<String, String>(topic, partitionNumber, key, message);
-        }
+        final Message message = getMessage(context);
 
+        sampleResultStart(result, message.toString());
+
+        ProducerRecord<String, String> producerRecord;
+        final Integer partition = context.getIntParameter(PARAMETER_KAFKA_PARTITION);
         try {
+            if (partition != null) {
+
+                producerRecord = new ProducerRecord<>(topic, key, mapper.writerWithDefaultPrettyPrinter().writeValueAsString(message));
+            } else {
+                producerRecord = new ProducerRecord<>(topic, partition, key, mapper.writerWithDefaultPrettyPrinter().writeValueAsString(message));
+            }
             producer.send(producerRecord);
             sampleResultSuccess(result, null);
-        } catch (Exception e) {
-            sampleResultFailed(result, "500", e);
         }
+        catch (JsonProcessingException e) {
+            sampleResultFailed(result, "500", e);
+            e.printStackTrace();
+        }
+
         return result;
     }
 
+    private Message getMessage(JavaSamplerContext context) {
+        final Integer threadNumber = Integer.valueOf(context.getParameter(PARAMETER_THREAD_NUMBER));
+        final Integer messageNumber = Integer.valueOf(context.getParameter(PARAMETER_MESSAGE_NUMBER));
+        String batch = context.getParameter(PARAMETER_BATCH);
+        if(StringUtils.isBlank(batch)){
+            batch = "BATCH" + System.currentTimeMillis();
+        }
+        return new Message(batch, threadNumber, messageNumber, System.currentTimeMillis());
+    }
 
     private SampleResult newSampleResult() {
-        SampleResult result = new SampleResult();
+        final SampleResult result = new SampleResult();
         result.setDataEncoding(ENCODING);
         result.setDataType(SampleResult.TEXT);
         return result;
     }
-
 
     private void sampleResultStart(SampleResult result, String data) {
         result.setSamplerData(data);

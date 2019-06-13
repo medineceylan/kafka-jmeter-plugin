@@ -4,4 +4,4 @@ create fat jar with mvn clean package
 
 and put that jar under bin/ext of jmeter
 
-resart jmeter
+restart jmeter
