@@ -63,7 +63,6 @@ public class KafkaProducerSampler implements JavaSamplerClient {
         props.put(ProducerConfig.LINGER_MS_CONFIG, context.getParameter(ProducerConfig.LINGER_MS_CONFIG));
         props.put(ProducerConfig.BUFFER_MEMORY_CONFIG, context.getParameter(ProducerConfig.BUFFER_MEMORY_CONFIG));
 
-        // check if kafka security protocol is SSL or PLAINTEXT (default)
         if ("true".equalsIgnoreCase(context.getParameter(PARAMETER_KAFKA_USE_SSL))) {
             props.put("security.protocol", "SSL");
             props.put("ssl.keystore.location", context.getParameter(PARAMETER_KAFKA_SSL_KEYSTORE));
