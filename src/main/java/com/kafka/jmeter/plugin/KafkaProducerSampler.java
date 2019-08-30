@@ -125,14 +125,9 @@ public class KafkaProducerSampler implements JavaSamplerClient {
         sampleResultStart(result, message.toString());
 
         ProducerRecord<String, String> producerRecord;
-      //  final String partition = context.getParameter(PARAMETER_KAFKA_PARTITION);
-        try {
-//            if (partition != null) {
-//
-//                producerRecord = new ProducerRecord<>(topic,Integer.parseInt(partition), key, mapper.writerWithDefaultPrettyPrinter().writeValueAsString(message));
-//            } else {
-                producerRecord = new ProducerRecord<>(topic, key, mapper.writerWithDefaultPrettyPrinter().writeValueAsString(message));
-//            }
+         try {
+
+            producerRecord = new ProducerRecord<>(topic, key, mapper.writerWithDefaultPrettyPrinter().writeValueAsString(message));
             producer.send(producerRecord);
             sampleResultSuccess(result, null);
         }
